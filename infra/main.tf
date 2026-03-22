@@ -69,13 +69,17 @@ resource "random_password" "send_token" {
   special = false
 }
 
-# Intentionally managed by Tofu (no ignore_changes) — config updates via tofu apply
+# Managed locally — run tofu apply from local machine to update config
 resource "azurerm_key_vault_secret" "app_config" {
   name         = "app-config"
-  value        = file("../config.yaml")
+  value        = fileexists("../config.yaml") ? file("../config.yaml") : "placeholder"
   key_vault_id = azurerm_key_vault.main.id
 
   depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault]
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "azurerm_key_vault_secret" "google_oauth_client" {
