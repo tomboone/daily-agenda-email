@@ -11,6 +11,7 @@ Daily agenda email — a containerized FastAPI app that sends a daily morning em
 - go-task for task running
 - Docker for deployment to Azure App Service
 - OpenTofu for infrastructure provisioning
+- GitHub Actions for CI/CD (build → GHCR, deploy → Azure App Service via OIDC)
 - APScheduler for in-process cron scheduling
 - Google Calendar API + OAuth (google-api-python-client, google-auth-oauthlib)
 - Todoist REST API v2 (httpx)
@@ -56,6 +57,15 @@ Key infra commands:
 - `cd infra && tofu init -backend-config=backend.hcl` — initialize
 - `tofu plan` — preview changes
 - `tofu apply` — apply (also updates `app-config` secret from `config.yaml`)
+
+## CI/CD
+
+Two GitHub Actions workflows in `.github/workflows/`:
+
+- `build.yml` — triggers on push to main or manual. Builds Docker image, pushes to GHCR with `sha-xxx` and `latest` tags.
+- `deploy.yml` — triggers on successful build or manual. Logs into Azure via OIDC, runs `tofu apply`, deploys `latest` image to App Service.
+
+GitHub repo secrets needed (OIDC only): `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
 
 ## Configuration
 

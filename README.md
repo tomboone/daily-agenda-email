@@ -33,14 +33,16 @@ Empty sections are omitted automatically.
 - Jinja2 (HTML email template)
 - Docker for deployment to Azure App Service
 - OpenTofu for infrastructure provisioning
+- GitHub Actions for CI/CD
 
 ## Prerequisites
 
-- A Google Cloud OAuth app with the `calendar.readonly` scope
-- A Todoist API token
 - An Azure subscription with an existing App Service Plan
 - An Azure Communication Services resource with a verified sender domain
-- OpenTofu (or Terraform) CLI installed for infrastructure provisioning
+- An Azure App Registration with OIDC federated credentials for GitHub Actions
+- A Google Cloud project with an OAuth app (see [Google Cloud setup](#google-cloud-setup) below)
+- A Todoist API token (from [Todoist settings](https://todoist.com/prefs/integrations))
+- OpenTofu (or Terraform) CLI installed
 
 ## Infrastructure
 
@@ -68,6 +70,46 @@ tofu apply
 ```
 
 `tofu apply` reads your `config.yaml` from the project root and stores it as the `app-config` Key Vault secret. Run `tofu apply` again whenever you update `config.yaml`.
+
+## Google Cloud Setup
+
+The app uses Google Calendar API via OAuth. You need a Google Cloud project with an OAuth consent screen and credentials.
+
+### 1. Create a Google Cloud project
+
+Go to [Google Cloud Console](https://console.cloud.google.com/) and create a new project (or use an existing one from your personal account).
+
+### 2. Enable the Google Calendar API
+
+Navigate to **APIs & Services > Library**, search for "Google Calendar API", and enable it.
+
+### 3. Configure the OAuth consent screen
+
+Navigate to **APIs & Services > OAuth consent screen**:
+
+- **User type:** External
+- **App name:** Daily Agenda Email (or whatever you like)
+- **Scopes:** Add `https://www.googleapis.com/auth/calendar.readonly`
+- **Test users:** Add each Google account email you want to access calendars from (personal, work, etc.)
+
+Since the app stays in "Testing" mode (not published), only the test users you add can authorize.
+
+### 4. Create OAuth credentials
+
+Navigate to **APIs & Services > Credentials**:
+
+- Click **Create Credentials > OAuth client ID**
+- **Application type:** Web application
+- **Authorized redirect URIs:** Add both:
+  - `http://localhost:8000/auth/google/callback` (local dev)
+  - `https://daily-agenda-email.azurewebsites.net/auth/google/callback` (production)
+- Click **Create**
+
+Copy the **Client ID** and **Client Secret**. You'll store these as a JSON object in Key Vault:
+
+```json
+{"client_id": "xxxx.apps.googleusercontent.com", "client_secret": "GOCSPX-xxxx"}
+```
 
 ## Setup
 
@@ -158,8 +200,15 @@ These require **manual population** after provisioning:
 
 | Secret name | Value |
 |---|---|
-| `google-oauth-client` | `{"client_id": "...", "client_secret": "..."}` |
-| `todoist-api-token` | Your Todoist API token |
+| `google-oauth-client` | `{"client_id": "...", "client_secret": "..."}` from [Google Cloud setup](#4-create-oauth-credentials) |
+| `todoist-api-token` | API token from [Todoist integrations settings](https://todoist.com/prefs/integrations) |
+
+```bash
+az keyvault secret set --vault-name kv-daily-agenda-email --name google-oauth-client \
+  --value '{"client_id": "xxxx.apps.googleusercontent.com", "client_secret": "GOCSPX-xxxx"}'
+az keyvault secret set --vault-name kv-daily-agenda-email --name todoist-api-token \
+  --value "your-todoist-api-token"
+```
 
 At startup, the app loads config from the `app-config` Key Vault secret. If not found (local dev), it falls back to the local `config.yaml` file.
 
@@ -198,26 +247,30 @@ task fmt              # Auto-format
 ### Project structure
 
 ```
-src/
-  main.py              — FastAPI app factory, routes, lifespan
-  config.py            — Pydantic config models, YAML loading
-  secrets.py           — Azure Key Vault wrapper
-  google_auth.py       — Google OAuth flow + token storage
-  google_calendar.py   — Fetch & filter calendar events
-  todoist.py           — Fetch & filter tasks, color mapping
-  email.py             — Compose HTML + send via Azure
-  scheduler.py         — APScheduler cron job
+src/                         — Application code
+  main.py                    — FastAPI app factory, routes, lifespan
+  config.py                  — Pydantic config models, YAML loading
+  secrets.py                 — Azure Key Vault wrapper
+  google_auth.py             — Google OAuth flow + token storage
+  google_calendar.py         — Fetch & filter calendar events
+  todoist.py                 — Fetch & filter tasks, color mapping
+  email.py                   — Compose HTML + send via Azure
+  scheduler.py               — APScheduler cron job
   templates/
-    agenda.html        — Jinja2 email template
+    agenda.html              — Jinja2 email template
 
-infra/
-  providers.tf         — OpenTofu provider and backend config
-  variables.tf         — Input variable declarations
-  data.tf              — Existing App Service Plan + ACS data sources
-  main.tf              — Resource group, Key Vault, Web App, secrets
-  outputs.tf           — Web app URL/name, Key Vault URI
-  terraform.tfvars     — Non-secret variable values (committed)
-  backend.hcl          — State backend config (committed)
+infra/                       — OpenTofu infrastructure
+  providers.tf               — Provider and backend config
+  variables.tf               — Input variable declarations
+  data.tf                    — Existing App Service Plan + ACS data sources
+  main.tf                    — Resource group, Key Vault, Web App, secrets
+  outputs.tf                 — Web app URL/name, Key Vault URI
+  terraform.tfvars           — Non-secret variable values (committed)
+  backend.hcl                — State backend config (committed)
+
+.github/workflows/           — CI/CD
+  build.yml                  — Build image + push to GHCR
+  deploy.yml                 — Tofu apply + deploy to App Service
 ```
 
 ### Local development
@@ -230,9 +283,32 @@ az login
 
 Then `task dev` to run the app. Use `POST /send` to test without waiting for the scheduler.
 
+## CI/CD
+
+Two GitHub Actions workflows handle build and deployment:
+
+**Build** (`.github/workflows/build.yml`) — triggers on push to `main` or manual dispatch:
+1. Builds the Docker image
+2. Pushes to GHCR with `sha-xxxxx` and `latest` tags
+
+**Deploy** (`.github/workflows/deploy.yml`) — triggers on successful build or manual dispatch:
+1. Logs into Azure via OIDC
+2. Runs `tofu apply` to ensure infrastructure is current
+3. Deploys the `latest` image to App Service
+
+### GitHub repo secrets
+
+Only 3 secrets needed (Azure OIDC):
+
+| Secret | Value |
+|---|---|
+| `AZURE_CLIENT_ID` | App Registration client ID |
+| `AZURE_TENANT_ID` | Azure AD tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+
 ## Deployment
 
-The app runs as a Docker container on Azure App Service, provisioned via OpenTofu.
+The app runs as a Docker container on Azure App Service.
 
 ```bash
 task up       # Build and start locally in Docker
@@ -247,12 +323,28 @@ In production:
 - GitHub Actions builds/pushes to GHCR, then deploys to App Service via OIDC
 - The scheduler runs in-process at the configured time
 
-### Manual steps after first provision
+### Checklist before first push
 
-1. Add a federated credential to your Azure App Registration for this repo
-2. Populate `google-oauth-client` and `todoist-api-token` in Key Vault
-3. Set up GitHub Actions with 3 secrets: Azure client ID, tenant ID, subscription ID
-4. Deploy the app, then visit `/auth/google/start/{account}` to authorize each Google account
+Pushing to `main` triggers both GitHub Actions workflows. Complete these steps first:
+
+- [ ] **Google Cloud:** Create OAuth app with Calendar API enabled and both redirect URIs registered (see [Google Cloud setup](#google-cloud-setup))
+- [ ] **Todoist:** Copy your API token from [Todoist integrations settings](https://todoist.com/prefs/integrations)
+- [ ] **Config:** Create `config.yaml` at project root with your calendar IDs, filters, and email addresses (see [Configuration](#2-configuration))
+- [ ] **Infrastructure:** Run `tofu init -backend-config=backend.hcl` then `tofu apply` from the `infra/` directory — this provisions the resource group, Key Vault, Web App, and auto-populates `app-config`, `azure-comms-connection-string`, and `send-endpoint-token`
+- [ ] **Key Vault secrets:** Populate the two manual secrets (see [Key Vault secrets](#3-key-vault-secrets)):
+  ```bash
+  az keyvault secret set --vault-name kv-daily-agenda-email --name google-oauth-client \
+    --value '{"client_id": "xxxx.apps.googleusercontent.com", "client_secret": "GOCSPX-xxxx"}'
+  az keyvault secret set --vault-name kv-daily-agenda-email --name todoist-api-token \
+    --value "your-todoist-api-token"
+  ```
+- [ ] **Azure OIDC:** Add a federated credential to your App Registration for this repo (entity type: branch, value: `main`)
+- [ ] **GitHub secrets:** Add `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` to the repo (see [GitHub repo secrets](#github-repo-secrets))
+
+### After first deploy
+
+- [ ] Authorize each Google account by visiting `https://daily-agenda-email.azurewebsites.net/auth/google/start/{account_name}`
+- [ ] Verify with `POST /send` using the auto-generated `send-endpoint-token` from Key Vault
 
 ## API
 
