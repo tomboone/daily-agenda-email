@@ -32,22 +32,51 @@ Empty sections are omitted automatically.
 - Azure Communication Services (email)
 - Jinja2 (HTML email template)
 - Docker for deployment to Azure App Service
+- OpenTofu for infrastructure provisioning
 
 ## Prerequisites
 
 - A Google Cloud OAuth app with the `calendar.readonly` scope
 - A Todoist API token
-- An Azure Key Vault instance
+- An Azure subscription with an existing App Service Plan
 - An Azure Communication Services resource with a verified sender domain
+- OpenTofu (or Terraform) CLI installed for infrastructure provisioning
+
+## Infrastructure
+
+All Azure resources are provisioned via OpenTofu in the `infra/` directory.
+
+### What it provisions
+
+| Resource | Name |
+|---|---|
+| Resource Group | `rg-daily-agenda-email` |
+| Key Vault | `kv-daily-agenda-email` |
+| Linux Web App | `daily-agenda-email` |
+| RBAC role assignments | Key Vault Secrets Officer for Web App + deployer |
+| Key Vault secrets | `app-config`, `azure-comms-connection-string`, `send-endpoint-token` (auto), `google-oauth-client`, `todoist-api-token` (placeholders) |
+
+It also references your existing App Service Plan and Azure Communication Services as data sources.
+
+### Provision
+
+```bash
+cd infra
+tofu init -backend-config=backend.hcl
+tofu plan
+tofu apply
+```
+
+`tofu apply` reads your `config.yaml` from the project root and stores it as the `app-config` Key Vault secret. Run `tofu apply` again whenever you update `config.yaml`.
 
 ## Setup
 
-### 1. Environment
+### 1. Environment (local dev)
 
 Copy `.env.example` to `.env` and set your Key Vault URL:
 
 ```
-KEY_VAULT_URL=https://your-vault-name.vault.azure.net/
+KEY_VAULT_URL=https://kv-daily-agenda-email.vault.azure.net/
 ```
 
 ### 2. Configuration
@@ -117,23 +146,22 @@ Each calendar's `section` field controls where its events appear:
 
 ### 3. Key Vault secrets
 
-Populate these secrets in your Azure Key Vault:
+After `tofu apply`, these secrets are **auto-populated** — no manual step:
+
+| Secret name | Source |
+|---|---|
+| `app-config` | Your `config.yaml` (via `tofu apply`) |
+| `azure-comms-connection-string` | Read from your existing ACS resource |
+| `send-endpoint-token` | Auto-generated random string |
+
+These require **manual population** after provisioning:
 
 | Secret name | Value |
 |---|---|
 | `google-oauth-client` | `{"client_id": "...", "client_secret": "..."}` |
 | `todoist-api-token` | Your Todoist API token |
-| `azure-comms-connection-string` | Azure Communication Services connection string |
-| `send-endpoint-token` | Any random string (protects the manual send endpoint) |
-| `app-config` | *(production only)* Your `config.yaml` contents — see below |
 
-For production, store your config in Key Vault instead of mounting a file:
-
-```bash
-az keyvault secret set --vault-name your-vault --name app-config --file config.yaml
-```
-
-At startup, the app checks for `app-config` in Key Vault first. If not found, it falls back to the local `config.yaml` file. This means local dev works without the secret, and production needs no file mounts.
+At startup, the app loads config from the `app-config` Key Vault secret. If not found (local dev), it falls back to the local `config.yaml` file.
 
 ### 4. Google OAuth
 
@@ -181,6 +209,15 @@ src/
   scheduler.py         — APScheduler cron job
   templates/
     agenda.html        — Jinja2 email template
+
+infra/
+  providers.tf         — OpenTofu provider and backend config
+  variables.tf         — Input variable declarations
+  data.tf              — Existing App Service Plan + ACS data sources
+  main.tf              — Resource group, Key Vault, Web App, secrets
+  outputs.tf           — Web app URL/name, Key Vault URI
+  terraform.tfvars     — Non-secret variable values (committed)
+  backend.hcl          — State backend config (committed)
 ```
 
 ### Local development
@@ -195,7 +232,7 @@ Then `task dev` to run the app. Use `POST /send` to test without waiting for the
 
 ## Deployment
 
-The app runs as a Docker container on Azure App Service.
+The app runs as a Docker container on Azure App Service, provisioned via OpenTofu.
 
 ```bash
 task up       # Build and start locally in Docker
@@ -203,10 +240,19 @@ task down     # Stop
 ```
 
 In production:
-- `KEY_VAULT_URL` is set as an App Service application setting
-- Config is stored as Key Vault secret `app-config` (no file mounts needed)
+- Infrastructure provisioned via `tofu apply` (see [Infrastructure](#infrastructure))
+- `KEY_VAULT_URL` set automatically as an App Service app setting by OpenTofu
+- Config stored as Key Vault secret `app-config` (updated via `tofu apply`)
 - Managed Identity authenticates to Key Vault (no credentials needed)
+- GitHub Actions builds/pushes to GHCR, then deploys to App Service via OIDC
 - The scheduler runs in-process at the configured time
+
+### Manual steps after first provision
+
+1. Add a federated credential to your Azure App Registration for this repo
+2. Populate `google-oauth-client` and `todoist-api-token` in Key Vault
+3. Set up GitHub Actions with 3 secrets: Azure client ID, tenant ID, subscription ID
+4. Deploy the app, then visit `/auth/google/start/{account}` to authorize each Google account
 
 ## API
 

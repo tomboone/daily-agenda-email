@@ -10,6 +10,7 @@ Daily agenda email — a containerized FastAPI app that sends a daily morning em
 - uv for package management
 - go-task for task running
 - Docker for deployment to Azure App Service
+- OpenTofu for infrastructure provisioning
 - APScheduler for in-process cron scheduling
 - Google Calendar API + OAuth (google-api-python-client, google-auth-oauthlib)
 - Todoist REST API v2 (httpx)
@@ -36,9 +37,30 @@ src/
     agenda.html        — Jinja2 email template
 ```
 
+## Infrastructure
+
+OpenTofu config in `infra/`. Provisions resource group, Key Vault, Linux Web App, RBAC role assignments, and Key Vault secrets. References existing App Service Plan and Azure Communication Services as data sources. State stored in Azure Storage.
+
+```
+infra/
+  providers.tf         — azurerm ~> 4.14, random ~> 3.0, backend "azurerm" {}
+  variables.tf         — input variable declarations
+  data.tf              — data sources (existing App Service Plan, ACS)
+  main.tf              — resource group, Key Vault, Web App, role assignments, secrets
+  outputs.tf           — web app URL/name, Key Vault URI, resource group name
+  terraform.tfvars     — committed non-secret values
+  backend.hcl          — committed backend storage config
+```
+
+Key infra commands:
+- `cd infra && tofu init -backend-config=backend.hcl` — initialize
+- `tofu plan` — preview changes
+- `tofu apply` — apply (also updates `app-config` secret from `config.yaml`)
+
 ## Configuration
 
 - Non-secret config lives in `config.yaml` (local dev) or Key Vault secret `app-config` (production)
+- `tofu apply` reads `config.yaml` from project root and stores it as the `app-config` Key Vault secret
 - All secrets in Azure Key Vault: `google-oauth-client`, `google-token-{name}`, `todoist-api-token`, `azure-comms-connection-string`, `send-endpoint-token`, `app-config`
 - Single required env var: `KEY_VAULT_URL`
 - Optional env var: `CONFIG_PATH` (defaults to `config.yaml`, used only when Key Vault has no `app-config` secret)

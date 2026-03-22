@@ -25,3 +25,7 @@ uv.lock
 
 # Configuration (contains calendar IDs, email addresses)
 config.yaml
+
+# OpenTofu
+infra/.terraform/
+infra/*.tfstate*
