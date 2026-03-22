@@ -11,7 +11,7 @@ resource "azurerm_key_vault" "main" {
   resource_group_name        = azurerm_resource_group.main.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
   sku_name                   = "standard"
-  enable_rbac_authorization  = true
+  rbac_authorization_enabled = true
   purge_protection_enabled   = false
   soft_delete_retention_days = 7
 }
@@ -27,8 +27,9 @@ resource "azurerm_linux_web_app" "main" {
   }
 
   site_config {
-    always_on         = true
-    health_check_path = "/health"
+    always_on                         = true
+    health_check_path                 = "/health"
+    health_check_eviction_time_in_min = 2
 
     application_stack {
       docker_registry_url = "https://ghcr.io"
