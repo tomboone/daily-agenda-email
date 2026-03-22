@@ -1,0 +1,58 @@
+version: 2
+
+updates:
+  - package-ecosystem: pip
+    directory: /
+    target-branch: updates/dependencies
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "09:00"
+      timezone: America/New_York
+    groups:
+      python-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: terraform
+    directory: /infra
+    target-branch: updates/dependencies
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "09:00"
+      timezone: America/New_York
+    groups:
+      terraform-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: updates/dependencies
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "09:00"
+      timezone: America/New_York
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: docker
+    directory: /
+    target-branch: updates/dependencies
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "09:00"
+      timezone: America/New_York
+    groups:
+      docker-minor-patch:
+        update-types:
+          - minor
+          - patch
