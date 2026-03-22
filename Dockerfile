@@ -1,15 +1,15 @@
 FROM python:3.12-slim AS base
 
-RUN pip install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app
 
 FROM base AS deps
 COPY pyproject.toml uv.lock* ./
-RUN uv sync --no-dev --system --frozen 2>/dev/null || uv sync --no-dev --system
+RUN uv sync --frozen --no-dev --no-install-project
 
 FROM base AS runtime
-COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=deps /usr/local/bin /usr/local/bin
+COPY --from=deps /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
 COPY src/ src/
 
 EXPOSE 8000
