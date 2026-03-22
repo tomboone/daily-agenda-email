@@ -1,15 +1,25 @@
 [project]
-name = "my-project"
+name = "daily-agenda-email"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
+    "apscheduler>=3.10,<4",
+    "google-auth-oauthlib",
+    "google-api-python-client",
+    "azure-identity",
+    "azure-keyvault-secrets",
+    "azure-communication-email",
+    "httpx",
+    "pyyaml",
+    "jinja2",
 ]
 
 [dependency-groups]
 dev = [
     "pytest",
+    "pytest-asyncio",
     "pytest-watch",
     "httpx",
     "ruff",
@@ -31,3 +41,4 @@ typeCheckingMode = "basic"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"

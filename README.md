@@ -1,101 +1,218 @@
-# Python Devcontainer Template
+# Daily Agenda Email
 
-A project template for Python/FastAPI development using Docker devcontainers, Claude Code, and uv.
+A containerized Python app that sends a daily morning email combining your Google Calendar events, Todoist tasks, and your spouse's calendar — all in one glanceable digest.
 
-## What's Included
+## What it does
 
-- **Devcontainer** with Python 3.12, uv, go-task, gh CLI, Azure CLI, and Claude Code
-- **FastAPI** starter app with health check endpoint
-- **Taskfile** for common dev tasks (run, test, lint, format, typecheck, docker)
-- **Pre-commit hooks** running ruff, pyright, and pytest (on push)
-- **Production Dockerfile** with multi-stage build using system Python
-- **Docker Compose** for local container testing
-- **Claude Code** project config (`.claude/CLAUDE.md`)
+Every morning at a configured time, the app:
+
+1. Fetches today's events from multiple Google Calendars across multiple Google accounts
+2. Fetches today's and overdue tasks from Todoist
+3. Applies per-calendar and per-project filters to exclude unwanted items
+4. Composes an HTML email with color-coded sections
+5. Sends it via Azure Communication Services
+
+### Email sections
+
+- **Dinner** — meal planning calendar entry for the day
+- **All-Day Events** — birthdays, holidays, etc.
+- **Calendar** — timed events sorted chronologically, color-coded by source calendar
+- **Tasks** — overdue tasks first, then today's, color-coded by Todoist project
+- **Spouse's Schedule** — separate section with events from shared calendars
+
+Empty sections are omitted automatically.
+
+## Stack
+
+- Python 3.12, FastAPI, uvicorn
+- APScheduler (in-process cron)
+- Google Calendar API + OAuth
+- Todoist REST API v2
+- Azure Key Vault (secrets + OAuth token storage)
+- Azure Communication Services (email)
+- Jinja2 (HTML email template)
+- Docker for deployment to Azure App Service
 
 ## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [PyCharm Professional](https://www.jetbrains.com/pycharm/) (for devcontainer support)
-- SSH key configured for GitHub (`~/.ssh/`)
-- Anthropic account for Claude Code
+- A Google Cloud OAuth app with the `calendar.readonly` scope
+- A Todoist API token
+- An Azure Key Vault instance
+- An Azure Communication Services resource with a verified sender domain
 
-The following host directories are bind-mounted into the container:
+## Setup
 
-- `~/.claude/` — Claude Code config, auth, and plugins
-- `~/.config/gh/` — GitHub CLI auth
-- `~/.azure/` — Azure CLI auth
-- `~/.ssh/` — SSH keys (copied with correct permissions)
+### 1. Environment
 
-## Create a New Project
+Copy `.env.example` to `.env` and set your Key Vault URL:
 
-```bash
-gh repo create my-new-project --template tomboone/python-devcontainer-template --clone --private
-cd my-new-project
+```
+KEY_VAULT_URL=https://your-vault-name.vault.azure.net/
 ```
 
-## Start the Devcontainer
+### 2. Configuration
 
-Open the project in PyCharm, then open `.devcontainer/devcontainer.json` and click the gutter icon → **Create Dev Container and Mount Sources**.
+Create a `config.yaml` at the project root (gitignored):
 
-Once the JetBrains Client opens, use the integrated terminal for all commands.
+```yaml
+send_time: "06:00"
+timezone: "America/New_York"
+recipient_email: "you@example.com"
+sender_email: "DoNotReply@your-domain.azurecomm.net"
 
-### Set the Python Interpreter
+google_accounts:
+  - name: "personal"
+    calendars:
+      - id: "primary"
+        label: "Personal"
+        section: "self"
+        filters:
+          exclude_titles: []
+      - id: "meal_calendar_id@group.calendar.google.com"
+        label: "Meal Planning"
+        section: "meal_planning"
+        filters:
+          exclude_titles: ["Weekly Meal Planning"]
+      - id: "shared_calendar_id@group.calendar.google.com"
+        label: "Family"
+        section: "self"
+        filters:
+          exclude_titles: ["tv off", "bed", "lights out"]
+      - id: "wife_calendar_id@group.calendar.google.com"
+        label: "Wife"
+        section: "wife"
+        filters:
+          exclude_titles: []
+  - name: "work"
+    calendars:
+      - id: "primary"
+        label: "Work"
+        section: "self"
+        filters:
+          exclude_titles: []
 
-In the JetBrains Client: bottom-right interpreter selector → Add Interpreter → Existing → `/home/vscode/.venv/bin/python`
+todoist:
+  filters:
+    exclude_projects: ["Dog"]
+    exclude_titles: ["Outside"]
 
-## Common Tasks
+meal_planning_section_label: "Dinner"
+wife_section_label: "Sarah's Schedule"
+```
 
-All tasks are run inside the devcontainer terminal:
+#### Calendar sections
+
+Each calendar's `section` field controls where its events appear:
+
+| Value | Section |
+|---|---|
+| `"self"` | Main calendar + all-day events sections |
+| `"wife"` | Spouse's schedule (below a divider) |
+| `"meal_planning"` | Meal planning (top of email, no time shown) |
+
+#### Filters
+
+- `exclude_titles` — exact match, case-insensitive. An event titled "bed" is filtered, but "Bedtime routine" is not.
+- `exclude_projects` — Todoist project names, exact match, case-insensitive.
+
+### 3. Key Vault secrets
+
+Populate these secrets in your Azure Key Vault:
+
+| Secret name | Value |
+|---|---|
+| `google-oauth-client` | `{"client_id": "...", "client_secret": "..."}` |
+| `todoist-api-token` | Your Todoist API token |
+| `azure-comms-connection-string` | Azure Communication Services connection string |
+| `send-endpoint-token` | Any random string (protects the manual send endpoint) |
+| `app-config` | *(production only)* Your `config.yaml` contents — see below |
+
+For production, store your config in Key Vault instead of mounting a file:
 
 ```bash
-task                  # List all tasks
-task dev              # Run app with hot reload (localhost:8000)
-task test             # Run pytest
+az keyvault secret set --vault-name your-vault --name app-config --file config.yaml
+```
+
+At startup, the app checks for `app-config` in Key Vault first. If not found, it falls back to the local `config.yaml` file. This means local dev works without the secret, and production needs no file mounts.
+
+### 4. Google OAuth
+
+Start the app, then authorize each Google account by visiting:
+
+```
+http://localhost:8000/auth/google/start/personal
+http://localhost:8000/auth/google/start/work
+```
+
+Tokens are stored in Key Vault as `google-token-{account_name}` and refreshed automatically.
+
+### 5. Verify
+
+Trigger a manual send:
+
+```bash
+curl -X POST http://localhost:8000/send -H "X-Send-Token: your-token"
+```
+
+## Development
+
+### Commands
+
+```bash
+task dev              # Run locally with hot reload
+task test             # Run tests
 task lint             # Ruff lint + format check
 task typecheck        # Pyright type checking
 task check            # Run all checks (lint, typecheck, test)
-task fmt              # Auto-format with ruff
+task fmt              # Auto-format
 ```
 
-### Docker (run from host)
+### Project structure
+
+```
+src/
+  main.py              — FastAPI app factory, routes, lifespan
+  config.py            — Pydantic config models, YAML loading
+  secrets.py           — Azure Key Vault wrapper
+  google_auth.py       — Google OAuth flow + token storage
+  google_calendar.py   — Fetch & filter calendar events
+  todoist.py           — Fetch & filter tasks, color mapping
+  email.py             — Compose HTML + send via Azure
+  scheduler.py         — APScheduler cron job
+  templates/
+    agenda.html        — Jinja2 email template
+```
+
+### Local development
+
+The app uses `DefaultAzureCredential`, which falls back to Azure CLI auth locally:
 
 ```bash
-docker compose up --build    # Build and run the production container
-docker compose down          # Stop it
+az login
 ```
 
-## Claude Code
+Then `task dev` to run the app. Use `POST /send` to test without waiting for the scheduler.
 
-Claude Code is available inside the devcontainer:
+## Deployment
+
+The app runs as a Docker container on Azure App Service.
 
 ```bash
-claude                # Start Claude Code
+task up       # Build and start locally in Docker
+task down     # Stop
 ```
 
-Your host's Claude Code settings, auth, and plugins (including Superpowers) carry through via the bind mount.
+In production:
+- `KEY_VAULT_URL` is set as an App Service application setting
+- Config is stored as Key Vault secret `app-config` (no file mounts needed)
+- Managed Identity authenticates to Key Vault (no credentials needed)
+- The scheduler runs in-process at the configured time
 
-## Project Structure
+## API
 
-```
-├── .claude/
-│   └── CLAUDE.md                 # Claude Code project instructions
-├── .devcontainer/
-│   ├── devcontainer.json         # Dev environment config
-│   └── Dockerfile                # Dev container image
-├── .pre-commit-config.yaml       # Pre-commit hook config
-├── compose.yaml                  # App container (local testing)
-├── Dockerfile                    # App production image
-├── pyproject.toml                # Dependencies and tool config
-├── Taskfile.yml                  # Task runner commands
-├── src/
-│   └── main.py                   # FastAPI entrypoint
-└── tests/
-    └── __init__.py
-```
-
-## After Creating a New Project
-
-1. Update `name` in `pyproject.toml`
-2. Edit `.claude/CLAUDE.md` with project-specific details
-3. Add dependencies: `uv add <package>`
-4. Run `/init` in Claude Code to enrich CLAUDE.md based on your codebase
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `GET` | `/auth/google/start/{account}` | Start Google OAuth flow |
+| `GET` | `/auth/google/callback` | OAuth callback (automatic) |
+| `POST` | `/send` | Manually trigger email (requires `X-Send-Token` header) |

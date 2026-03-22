@@ -22,3 +22,6 @@ uv.lock
 
 # OS
 .DS_Store
+
+# Configuration (contains calendar IDs, email addresses)
+config.yaml

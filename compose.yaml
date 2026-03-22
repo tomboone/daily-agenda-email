@@ -7,4 +7,5 @@ services:
       - .env
     volumes:
       - ./src:/app/src
+      - ./config.yaml:/app/config.yaml:ro
     restart: unless-stopped

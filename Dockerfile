@@ -13,4 +13,4 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 COPY src/ src/
 
 EXPOSE 8000
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.main:build_app_from_env", "--factory", "--host", "0.0.0.0", "--port", "8000"]

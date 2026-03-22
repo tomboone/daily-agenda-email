@@ -12,7 +12,7 @@ tasks:
   dev:
     desc: Run app locally with hot reload
     cmds:
-      - uv run uvicorn src.main:app --reload --port {{.APP_PORT}}
+      - uv run uvicorn src.main:build_app_from_env --factory --reload --port {{.APP_PORT}}
 
   test:
     desc: Run tests
