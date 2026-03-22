@@ -28,3 +28,8 @@ variable "acs_rg" {
   description = "Resource group of the existing ACS resource"
   type        = string
 }
+
+variable "ci_principal_id" {
+  description = "Object ID of the GitHub Actions OIDC service principal"
+  type        = string
+}

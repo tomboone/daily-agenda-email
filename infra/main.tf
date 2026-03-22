@@ -57,11 +57,18 @@ resource "azurerm_role_assignment" "webapp_keyvault" {
   principal_id         = azurerm_linux_web_app.main.identity[0].principal_id
 }
 
-# Deploying identity — needed so tofu apply can create/update secrets
+# Current caller — needed so tofu apply can create/update secrets
 resource "azurerm_role_assignment" "deployer_keyvault" {
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# CI service principal — persistent access for GitHub Actions deploys
+resource "azurerm_role_assignment" "ci_keyvault" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = var.ci_principal_id
 }
 
 resource "random_password" "send_token" {
@@ -75,7 +82,7 @@ resource "azurerm_key_vault_secret" "app_config" {
   value        = fileexists("../config.yaml") ? file("../config.yaml") : "placeholder"
   key_vault_id = azurerm_key_vault.main.id
 
-  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault]
+  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault, azurerm_role_assignment.ci_keyvault]
 
   lifecycle {
     ignore_changes = [value]
@@ -87,7 +94,7 @@ resource "azurerm_key_vault_secret" "google_oauth_client" {
   value        = "{}"
   key_vault_id = azurerm_key_vault.main.id
 
-  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault]
+  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault, azurerm_role_assignment.ci_keyvault]
 
   lifecycle {
     ignore_changes = [value]
@@ -99,7 +106,7 @@ resource "azurerm_key_vault_secret" "todoist_api_token" {
   value        = ""
   key_vault_id = azurerm_key_vault.main.id
 
-  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault]
+  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault, azurerm_role_assignment.ci_keyvault]
 
   lifecycle {
     ignore_changes = [value]
@@ -111,7 +118,7 @@ resource "azurerm_key_vault_secret" "acs_connection_string" {
   value        = data.azurerm_communication_service.existing.primary_connection_string
   key_vault_id = azurerm_key_vault.main.id
 
-  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault]
+  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault, azurerm_role_assignment.ci_keyvault]
 }
 
 resource "azurerm_key_vault_secret" "send_endpoint_token" {
@@ -119,5 +126,5 @@ resource "azurerm_key_vault_secret" "send_endpoint_token" {
   value        = random_password.send_token.result
   key_vault_id = azurerm_key_vault.main.id
 
-  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault]
+  depends_on = [azurerm_role_assignment.webapp_keyvault, azurerm_role_assignment.deployer_keyvault, azurerm_role_assignment.ci_keyvault]
 }

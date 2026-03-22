@@ -1,4 +1,5 @@
 subscription_id       = "de448de3-61e7-4067-b981-d1aeb0ce136d"
+ci_principal_id       = "893b0e69-260c-45c0-b935-29feb71a351e"
 location              = "eastus2"
 app_service_plan_name = "asp-tbc-app-services-01"
 app_service_plan_rg   = "rg-tbc-app-services"
