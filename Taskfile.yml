@@ -1,0 +1,82 @@
+version: "3"
+
+vars:
+  APP_PORT: 8000
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  dev:
+    desc: Run app locally with hot reload
+    cmds:
+      - uv run uvicorn src.main:app --reload --port {{.APP_PORT}}
+
+  test:
+    desc: Run tests
+    cmds:
+      - uv run pytest
+
+  test:watch:
+    desc: Run tests in watch mode
+    cmds:
+      - uv run pytest-watch
+
+  lint:
+    desc: Lint and format check
+    cmds:
+      - uv run ruff check .
+      - uv run ruff format --check .
+
+  typecheck:
+    desc: Run type checking
+    cmds:
+      - uv run pyright
+
+  fmt:
+    desc: Auto-format code
+    cmds:
+      - uv run ruff format .
+      - uv run ruff check --fix .
+
+  check:
+    desc: Run all checks (lint, typecheck, test)
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: test
+
+  pre-commit:install:
+    desc: Install pre-commit hooks
+    cmds:
+      - uv run pre-commit install
+
+  pre-commit:run:
+    desc: Run pre-commit on all files
+    cmds:
+      - uv run pre-commit run --all-files
+
+  up:
+    desc: Start app in Docker
+    cmds:
+      - docker compose up --build -d
+
+  down:
+    desc: Stop Docker services
+    cmds:
+      - docker compose down
+
+  logs:
+    desc: Tail Docker logs
+    cmds:
+      - docker compose logs -f
+
+  clean:
+    desc: Remove build artifacts and caches
+    cmds:
+      - find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+      - find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
+      - find . -type d -name .ruff_cache -exec rm -rf {} + 2>/dev/null || true
+      - rm -rf dist/ build/ *.egg-info/
