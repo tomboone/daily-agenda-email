@@ -64,20 +64,47 @@ def sort_tasks(tasks: list[TodoistTask]) -> list[TodoistTask]:
     return sorted(tasks, key=lambda t: (not t.is_overdue, t.due_date))
 
 
+def _get_results(response_json: list | dict) -> list:  # type: ignore[type-arg]
+    """Extract the results list from a Todoist API response (v1 wraps in an object)."""
+    if isinstance(response_json, list):
+        return response_json
+    return response_json.get("results", response_json.get("items", []))
+
+
+def _fetch_all_pages(client: httpx.Client, path: str) -> list:  # type: ignore[type-arg]
+    """Fetch all pages from a paginated Todoist API v1 endpoint."""
+    all_results: list = []  # type: ignore[type-arg]
+    cursor: str | None = None
+
+    while True:
+        params: dict[str, str] = {}
+        if cursor:
+            params["cursor"] = cursor
+        resp = client.get(path, params=params)
+        resp.raise_for_status()
+        data = resp.json()
+        all_results.extend(_get_results(data))
+
+        if isinstance(data, dict) and data.get("next_cursor"):
+            cursor = data["next_cursor"]
+        else:
+            break
+
+    return all_results
+
+
 def fetch_tasks(api_token: str, filters: TodoistFilters, today: date) -> list[TodoistTask]:
     """Fetch today's and overdue tasks from Todoist, filtered and sorted."""
     headers = {"Authorization": f"Bearer {api_token}"}
 
     with httpx.Client(base_url=TODOIST_API_BASE, headers=headers) as client:
-        projects_resp = client.get("/projects")
-        projects_resp.raise_for_status()
-        projects_by_id: dict[str, dict] = {p["id"]: p for p in projects_resp.json()}
+        projects = _fetch_all_pages(client, "/projects")
+        projects_by_id: dict[str, dict] = {p["id"]: p for p in projects}
 
-        tasks_resp = client.get("/tasks")
-        tasks_resp.raise_for_status()
+        raw_tasks = _fetch_all_pages(client, "/tasks")
 
         tasks: list[TodoistTask] = []
-        for raw in tasks_resp.json():
+        for raw in raw_tasks:
             due = raw.get("due")
             if due is None:
                 continue
