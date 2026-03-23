@@ -8,7 +8,7 @@ from src.config import TodoistFilters
 
 logger = logging.getLogger(__name__)
 
-TODOIST_API_BASE = "https://api.todoist.com/rest/v2"
+TODOIST_API_BASE = "https://api.todoist.com/api/v1"
 
 TODOIST_COLOR_MAP: dict[str, str] = {
     "berry_red": "#b8256f",

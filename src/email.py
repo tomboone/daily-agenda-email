@@ -77,4 +77,4 @@ def send_email(
     }
     poller = client.begin_send(message)
     result = poller.result()
-    logger.info("Email sent, status: %s", result.status)  # type: ignore[union-attr]
+    logger.info("Email sent, status: %s", result["status"])
