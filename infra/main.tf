@@ -76,7 +76,7 @@ resource "random_password" "send_token" {
   special = false
 }
 
-# Managed locally — run tofu apply from local machine to update config
+# Initial seed only — update config via: task config-push
 resource "azurerm_key_vault_secret" "app_config" {
   name         = "app-config"
   value        = fileexists("../config.yaml") ? file("../config.yaml") : "placeholder"

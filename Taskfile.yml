@@ -73,6 +73,12 @@ tasks:
     cmds:
       - docker compose logs -f
 
+  config-push:
+    desc: Push config.yaml to Key Vault and restart app
+    cmds:
+      - az keyvault secret set --vault-name kv-daily-agenda-email --name app-config --file config.yaml --encoding utf-8
+      - az webapp restart --name daily-agenda-email --resource-group rg-daily-agenda-email
+
   clean:
     desc: Remove build artifacts and caches
     cmds:
