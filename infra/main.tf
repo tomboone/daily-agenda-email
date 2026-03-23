@@ -57,11 +57,11 @@ resource "azurerm_role_assignment" "webapp_keyvault" {
   principal_id         = azurerm_linux_web_app.main.identity[0].principal_id
 }
 
-# Current caller — needed so tofu apply can create/update secrets
+# Personal user — needed for local tofu apply and manual secret management
 resource "azurerm_role_assignment" "deployer_keyvault" {
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = data.azurerm_client_config.current.object_id
+  principal_id         = var.deployer_principal_id
 }
 
 # CI service principal — persistent access for GitHub Actions deploys

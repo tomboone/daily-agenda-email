@@ -33,3 +33,8 @@ variable "ci_principal_id" {
   description = "Object ID of the GitHub Actions OIDC service principal"
   type        = string
 }
+
+variable "deployer_principal_id" {
+  description = "Object ID of the personal Azure user for local tofu apply"
+  type        = string
+}
