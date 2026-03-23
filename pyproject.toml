@@ -34,7 +34,7 @@ line-length = 100
 select = ["E", "F", "I", "W"]
 
 [tool.pyright]
-venvPath = "/home/vscode"
+venvPath = "."
 venv = ".venv"
 pythonVersion = "3.12"
 typeCheckingMode = "basic"

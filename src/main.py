@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.config import AppConfig, load_config, load_config_from_yaml
 from src.google_auth import create_auth_router
@@ -50,6 +51,7 @@ def create_app(
             logger.info("Scheduler shut down")
 
     app = FastAPI(lifespan=lifespan)
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
     # Register OAuth routes
     auth_router = create_auth_router(secrets)
