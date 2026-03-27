@@ -9,6 +9,7 @@ class CalendarSection(str, enum.Enum):
     SELF = "self"
     WIFE = "wife"
     MEAL_PLANNING = "meal_planning"
+    SPORTS = "sports"
 
 
 class CalendarFilters(BaseModel):
@@ -45,6 +46,7 @@ class AppConfig(BaseModel):
     todoist: TodoistConfig
     meal_planning_section_label: str = "Dinner"
     wife_section_label: str = "Her Schedule"
+    sports_section_label: str = "Sports"
 
 
 def load_config(path: str) -> AppConfig:

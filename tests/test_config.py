@@ -145,3 +145,29 @@ todoist:
     assert config.send_time == "06:00"
     assert config.recipient_email == "test@example.com"
     assert len(config.google_accounts) == 1
+
+
+def test_sports_section_parses(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("""
+send_time: "06:00"
+timezone: "America/New_York"
+recipient_email: "test@example.com"
+sender_email: "noreply@example.com"
+google_accounts:
+  - name: "personal"
+    calendars:
+      - id: "lfc@group.calendar.google.com"
+        label: "LFC"
+        section: "sports"
+        filters:
+          exclude_titles: []
+todoist:
+  filters:
+    exclude_projects: []
+    exclude_titles: []
+sports_section_label: "Sports"
+""")
+    config = load_config(str(config_file))
+    assert config.google_accounts[0].calendars[0].section == CalendarSection.SPORTS
+    assert config.sports_section_label == "Sports"

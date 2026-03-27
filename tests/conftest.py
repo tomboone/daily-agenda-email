@@ -46,6 +46,12 @@ def sample_config() -> AppConfig:
                         section=CalendarSection.WIFE,
                         filters=CalendarFilters(exclude_titles=[]),
                     ),
+                    CalendarConfig(
+                        id="lfc@group.calendar.google.com",
+                        label="LFC",
+                        section=CalendarSection.SPORTS,
+                        filters=CalendarFilters(exclude_titles=[]),
+                    ),
                 ],
             ),
             GoogleAccountConfig(

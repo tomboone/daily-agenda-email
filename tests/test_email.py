@@ -69,6 +69,7 @@ class TestComposeEmail:
             timezone="America/New_York",
             meal_planning_section_label="Dinner",
             wife_section_label="Sarah's Schedule",
+            sports_section_label="Sports",
         )
 
         assert "March 22" in subject
@@ -93,6 +94,7 @@ class TestComposeEmail:
             timezone="America/New_York",
             meal_planning_section_label="Dinner",
             wife_section_label="Sarah's Schedule",
+            sports_section_label="Sports",
         )
 
         assert "Dinner" in html
@@ -112,6 +114,7 @@ class TestComposeEmail:
             timezone="America/New_York",
             meal_planning_section_label="Dinner",
             wife_section_label="Sarah's Schedule",
+            sports_section_label="Sports",
         )
 
         assert "Sarah&#39;s Schedule" in html or "Sarah's Schedule" in html
@@ -128,11 +131,71 @@ class TestComposeEmail:
             timezone="America/New_York",
             meal_planning_section_label="Dinner",
             wife_section_label="Sarah's Schedule",
+            sports_section_label="Sports",
         )
 
         assert "Dinner" not in html
         assert "Tasks" not in html
         assert "Sarah" not in html
+        assert "Sports" not in html
+
+    def test_sports_section(self) -> None:
+        events = [
+            _make_event(
+                "F1 Grand Prix",
+                section=CalendarSection.SPORTS,
+                label="Racing",
+                color="#e91e63",
+            ),
+            _make_event(
+                "LFC vs Arsenal",
+                hour=11,
+                section=CalendarSection.SPORTS,
+                label="LFC",
+                color="#c8102e",
+            ),
+            _make_event("Meeting", 9, section=CalendarSection.SELF),
+        ]
+        today = date(2026, 3, 22)
+
+        subject, html = compose_email(
+            events=events,
+            tasks=[],
+            today=today,
+            timezone="America/New_York",
+            meal_planning_section_label="Dinner",
+            wife_section_label="Sarah's Schedule",
+            sports_section_label="Sports",
+        )
+
+        assert "Sports" in html
+        assert "F1 Grand Prix" in html
+        assert "LFC vs Arsenal" in html
+        assert "Racing" in html
+        assert "LFC" in html
+
+    def test_sports_section_between_tasks_and_wife(self) -> None:
+        events = [
+            _make_event("LFC vs Arsenal", hour=11, section=CalendarSection.SPORTS, label="LFC"),
+            _make_event("Yoga", 8, section=CalendarSection.WIFE, label="Wife"),
+        ]
+        tasks = [_make_task("Buy groceries")]
+        today = date(2026, 3, 22)
+
+        subject, html = compose_email(
+            events=events,
+            tasks=tasks,
+            today=today,
+            timezone="America/New_York",
+            meal_planning_section_label="Dinner",
+            wife_section_label="Sarah's Schedule",
+            sports_section_label="Sports",
+        )
+
+        tasks_pos = html.index("Tasks")
+        sports_pos = html.index("Sports")
+        wife_pos = html.index("Sarah")
+        assert tasks_pos < sports_pos < wife_pos
 
     def test_overdue_tasks_shown(self) -> None:
         tasks = [
@@ -148,6 +211,7 @@ class TestComposeEmail:
             timezone="America/New_York",
             meal_planning_section_label="Dinner",
             wife_section_label="Sarah's Schedule",
+            sports_section_label="Sports",
         )
 
         assert "Overdue" in html

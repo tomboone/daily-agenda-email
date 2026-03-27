@@ -21,6 +21,7 @@ def compose_email(
     timezone: str,
     meal_planning_section_label: str,
     wife_section_label: str,
+    sports_section_label: str = "Sports",
 ) -> tuple[str, str]:
     """Compose the email subject and HTML body. Returns (subject, html)."""
     date_heading = today.strftime("%A, %B %-d, %Y")
@@ -29,11 +30,14 @@ def compose_email(
     meal_planning_events = [e for e in events if e.section == CalendarSection.MEAL_PLANNING]
     self_events = [e for e in events if e.section == CalendarSection.SELF]
     wife_events = [e for e in events if e.section == CalendarSection.WIFE]
+    sports_events = [e for e in events if e.section == CalendarSection.SPORTS]
 
     self_all_day = [e for e in self_events if e.is_all_day]
     self_timed = [e for e in self_events if not e.is_all_day]
     wife_all_day = [e for e in wife_events if e.is_all_day]
     wife_timed = [e for e in wife_events if not e.is_all_day]
+    sports_all_day = [e for e in sports_events if e.is_all_day]
+    sports_timed = [e for e in sports_events if not e.is_all_day]
 
     self_calendar_labels = {e.calendar_label for e in self_events}
     show_calendar_labels = len(self_calendar_labels) > 1
@@ -53,6 +57,9 @@ def compose_email(
         show_calendar_labels=show_calendar_labels,
         overdue_tasks=overdue_tasks,
         today_tasks=today_tasks,
+        sports_all_day_events=sports_all_day,
+        sports_timed_events=sports_timed,
+        sports_section_label=sports_section_label,
         wife_all_day_events=wife_all_day,
         wife_timed_events=wife_timed,
         wife_section_label=wife_section_label,

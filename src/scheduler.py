@@ -79,6 +79,7 @@ def send_agenda(config: AppConfig, secrets: SecretsClient) -> None:
         timezone=config.timezone,
         meal_planning_section_label=config.meal_planning_section_label,
         wife_section_label=config.wife_section_label,
+        sports_section_label=config.sports_section_label,
     )
 
     try:
