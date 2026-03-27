@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
 from src.config import CalendarSection
-from src.email import compose_email, send_email
+from src.email import compose_email, merge_duplicate_events, send_email
 from src.google_calendar import CalendarEvent
 from src.todoist import TodoistTask
 
@@ -217,6 +217,54 @@ class TestComposeEmail:
         assert "Overdue" in html
         assert "Old task" in html
         assert "Mar 20" in html
+
+
+class TestMergeDuplicateEvents:
+    def test_merges_same_title_and_time(self) -> None:
+        events = [
+            _make_event("Game Break", 12, label="Ingest"),
+            _make_event("Game Break", 12, label="Ingest Company"),
+        ]
+        merged = merge_duplicate_events(events)
+        assert len(merged) == 1
+        assert merged[0].calendar_label == "Ingest, Ingest Company"
+
+    def test_different_times_not_merged(self) -> None:
+        events = [
+            _make_event("Standup", 9, label="Work"),
+            _make_event("Standup", 10, label="Personal"),
+        ]
+        merged = merge_duplicate_events(events)
+        assert len(merged) == 2
+
+    def test_preserves_order(self) -> None:
+        events = [
+            _make_event("First", 9, label="A"),
+            _make_event("Second", 10, label="B"),
+            _make_event("First", 9, label="C"),
+        ]
+        merged = merge_duplicate_events(events)
+        assert len(merged) == 2
+        assert merged[0].title == "First"
+        assert merged[0].calendar_label == "A, C"
+        assert merged[1].title == "Second"
+
+    def test_all_day_duplicates_merged(self) -> None:
+        events = [
+            _make_event("Holiday", label="Personal"),
+            _make_event("Holiday", label="Work"),
+        ]
+        merged = merge_duplicate_events(events)
+        assert len(merged) == 1
+        assert merged[0].calendar_label == "Personal, Work"
+
+    def test_uses_first_events_color(self) -> None:
+        events = [
+            _make_event("Game Break", 12, label="Ingest", color="#ff0000"),
+            _make_event("Game Break", 12, label="Ingest Company", color="#0000ff"),
+        ]
+        merged = merge_duplicate_events(events)
+        assert merged[0].calendar_color == "#ff0000"
 
 
 class TestSendEmail:

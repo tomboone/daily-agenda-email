@@ -1,5 +1,6 @@
 import logging
-from datetime import date
+from dataclasses import replace
+from datetime import date, datetime
 from pathlib import Path
 
 from azure.communication.email import EmailClient
@@ -12,6 +13,27 @@ from src.todoist import TodoistTask
 logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+
+def merge_duplicate_events(events: list[CalendarEvent]) -> list[CalendarEvent]:
+    """Merge events with the same title and time, combining their calendar labels."""
+    seen: dict[tuple[str, datetime | None, datetime | None, bool], int] = {}
+    merged: list[CalendarEvent] = []
+
+    for event in events:
+        key = (event.title, event.start_time, event.end_time, event.is_all_day)
+        if key in seen:
+            idx = seen[key]
+            existing = merged[idx]
+            merged[idx] = replace(
+                existing,
+                calendar_label=f"{existing.calendar_label}, {event.calendar_label}",
+            )
+        else:
+            seen[key] = len(merged)
+            merged.append(event)
+
+    return merged
 
 
 def compose_email(
@@ -32,8 +54,8 @@ def compose_email(
     wife_events = [e for e in events if e.section == CalendarSection.WIFE]
     sports_events = [e for e in events if e.section == CalendarSection.SPORTS]
 
-    self_all_day = [e for e in self_events if e.is_all_day]
-    self_timed = [e for e in self_events if not e.is_all_day]
+    self_all_day = merge_duplicate_events([e for e in self_events if e.is_all_day])
+    self_timed = merge_duplicate_events([e for e in self_events if not e.is_all_day])
     wife_all_day = [e for e in wife_events if e.is_all_day]
     wife_timed = [e for e in wife_events if not e.is_all_day]
     sports_all_day = [e for e in sports_events if e.is_all_day]
