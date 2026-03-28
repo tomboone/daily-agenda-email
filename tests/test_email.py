@@ -214,7 +214,7 @@ class TestComposeEmail:
             sports_section_label="Sports",
         )
 
-        assert "Overdue" in html
+        assert "overdue" in html
         assert "Old task" in html
         assert "Mar 20" in html
 

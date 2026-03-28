@@ -1,5 +1,5 @@
 import logging
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 
@@ -13,6 +13,27 @@ from src.todoist import TodoistTask
 logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+
+@dataclass
+class TaskGroup:
+    project_name: str
+    project_color: str
+    tasks: list[TodoistTask]
+
+
+def _group_tasks_by_project(tasks: list[TodoistTask]) -> list[TaskGroup]:
+    """Group tasks by project, preserving task order within each group."""
+    groups: dict[str, TaskGroup] = {}
+    for task in tasks:
+        if task.project_name not in groups:
+            groups[task.project_name] = TaskGroup(
+                project_name=task.project_name,
+                project_color=task.project_color,
+                tasks=[],
+            )
+        groups[task.project_name].tasks.append(task)
+    return list(groups.values())
 
 
 def merge_duplicate_events(events: list[CalendarEvent]) -> list[CalendarEvent]:
@@ -64,8 +85,7 @@ def compose_email(
     self_calendar_labels = {e.calendar_label for e in self_events}
     show_calendar_labels = len(self_calendar_labels) > 1
 
-    overdue_tasks = [t for t in tasks if t.is_overdue]
-    today_tasks = [t for t in tasks if not t.is_overdue]
+    task_groups = _group_tasks_by_project(tasks)
 
     env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)), autoescape=True)
     template = env.get_template("agenda.html")
@@ -77,8 +97,7 @@ def compose_email(
         self_all_day_events=self_all_day,
         self_timed_events=self_timed,
         show_calendar_labels=show_calendar_labels,
-        overdue_tasks=overdue_tasks,
-        today_tasks=today_tasks,
+        task_groups=task_groups,
         sports_all_day_events=sports_all_day,
         sports_timed_events=sports_timed,
         sports_section_label=sports_section_label,
