@@ -1,26 +1,33 @@
 {
-  "name": "python-dev",
+  "name": "daily-agenda-email",
+
   "build": {
-    "dockerfile": "Dockerfile"
+    "dockerfile": "${localWorkspaceFolder}/.devcontainer/Dockerfile",
+    "context": "${localWorkspaceFolder}"
   },
-  "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/azure-cli:1": {},
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
-    "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {}
-  },
-  "remoteUser": "vscode",
+
   "mounts": [
-    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.azure,target=/home/vscode/.azure,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.ssh,target=/tmp/.ssh-host,type=bind,readonly",
-    "type=bind,source=/run/host-services/ssh-auth.sock,target=/ssh-agent"
+    "source=${localEnv:HOME}/.claude,target=/home/devuser/.claude,type=bind",
+    "source=${localEnv:HOME}/.claude.json,target=/home/devuser/.claude.json,type=bind",
+    "source=${localEnv:HOME}/.ssh,target=/home/devuser/.ssh,type=bind,readonly",
+    "source=${localEnv:HOME}/.gitconfig,target=/tmp/.host-gitconfig,type=bind,readonly",
+    "source=${localWorkspaceFolder}/.devcontainer/setup.sh,target=/tmp/devcontainer-setup.sh,type=bind,readonly"
   ],
-  "containerEnv": {
-    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude",
-    "UV_PROJECT_ENVIRONMENT": "/home/vscode/.venv",
-    "SSH_AUTH_SOCK": "/ssh-agent"
-  },
-  "postCreateCommand": "cp -r /tmp/.ssh-host /home/vscode/.ssh && chmod 700 /home/vscode/.ssh && chmod 600 /home/vscode/.ssh/* && chmod 644 /home/vscode/.ssh/*.pub 2>/dev/null; uv sync --dev && uv run pre-commit install || true"
+
+  "initializeCommand": "docker build --target dev -t daily-agenda-email-dev ${localWorkspaceFolder}",
+
+  "postCreateCommand": "bash /tmp/devcontainer-setup.sh",
+
+  "remoteUser": "devuser",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
+  "workspaceFolder": "/app",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff"
+      ]
+    }
+  }
 }

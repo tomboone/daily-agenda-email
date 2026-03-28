@@ -1,6 +1,5 @@
-FROM mcr.microsoft.com/devcontainers/python:3.12-bullseye
+ARG BASE_IMAGE=daily-agenda-email-dev
+FROM ${BASE_IMAGE}
 
-# Install go-task
-RUN sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
-
-WORKDIR /workspace
+RUN chsh -s /bin/bash devuser && \
+    chown -R devuser:devuser /app
