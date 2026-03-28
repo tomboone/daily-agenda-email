@@ -18,6 +18,11 @@
 
   "postCreateCommand": "bash /tmp/devcontainer-setup.sh",
 
+  "remoteEnv": {
+    "UV_PROJECT_ENVIRONMENT": "/usr/local",
+    "UV_NO_SYNC": "1"
+  },
+
   "remoteUser": "devuser",
   "workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind",
   "workspaceFolder": "/app",

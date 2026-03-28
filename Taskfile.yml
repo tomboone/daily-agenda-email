@@ -2,6 +2,7 @@ version: "3"
 
 vars:
   APP_PORT: 8000
+  DEV_EXEC: docker compose --profile dev exec dev
 
 tasks:
   default:
@@ -12,34 +13,34 @@ tasks:
   dev:
     desc: Run app locally with hot reload
     cmds:
-      - uv run uvicorn src.main:build_app_from_env --factory --reload --port {{.APP_PORT}}
+      - "{{.DEV_EXEC}} uvicorn src.main:build_app_from_env --factory --reload --port {{.APP_PORT}}"
 
   test:
     desc: Run tests
     cmds:
-      - uv run pytest
+      - "{{.DEV_EXEC}} pytest"
 
   test:watch:
     desc: Run tests in watch mode
     cmds:
-      - uv run pytest-watch
+      - "{{.DEV_EXEC}} pytest-watch"
 
   lint:
     desc: Lint and format check
     cmds:
-      - uv run ruff check .
-      - uv run ruff format --check .
+      - "{{.DEV_EXEC}} ruff check ."
+      - "{{.DEV_EXEC}} ruff format --check ."
 
   typecheck:
     desc: Run type checking
     cmds:
-      - uv run pyright
+      - "{{.DEV_EXEC}} pyright"
 
   fmt:
     desc: Auto-format code
     cmds:
-      - uv run ruff format .
-      - uv run ruff check --fix .
+      - "{{.DEV_EXEC}} ruff format ."
+      - "{{.DEV_EXEC}} ruff check --fix ."
 
   check:
     desc: Run all checks (lint, typecheck, test)
@@ -51,12 +52,12 @@ tasks:
   pre-commit:install:
     desc: Install pre-commit hooks
     cmds:
-      - uv run pre-commit install
+      - pre-commit install
 
   pre-commit:run:
     desc: Run pre-commit on all files
     cmds:
-      - uv run pre-commit run --all-files
+      - pre-commit run --all-files
 
   up:
     desc: Start app in Docker
