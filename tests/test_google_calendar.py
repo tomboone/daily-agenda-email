@@ -12,6 +12,7 @@ from src.google_calendar import (
     CalendarEvent,
     fetch_events_for_account,
     filter_events,
+    filter_overnight_events,
 )
 
 
@@ -208,3 +209,66 @@ class TestEventSorting:
         )
         assert sorted_events[0].title == "All day"
         assert sorted_events[1].title == "Meeting"
+
+
+class TestFilterOvernightEvents:
+    """Test filtering of previous-day events that end early in the morning."""
+
+    tz = ZoneInfo("America/New_York")
+    today = date(2026, 3, 22)
+
+    def _make(
+        self, title: str, start: datetime | None, end: datetime | None, is_all_day: bool = False
+    ) -> CalendarEvent:
+        return CalendarEvent(
+            title=title,
+            start_time=start,
+            end_time=end,
+            is_all_day=is_all_day,
+            calendar_label="Cal",
+            calendar_color="#4285f4",
+            section=CalendarSection.SELF,
+        )
+
+    def test_drops_previous_day_event_ending_before_6am(self) -> None:
+        events = [
+            self._make(
+                "Late show",
+                datetime(2026, 3, 21, 22, 0, tzinfo=self.tz),
+                datetime(2026, 3, 22, 1, 0, tzinfo=self.tz),
+            ),
+        ]
+        result = filter_overnight_events(events, self.today, self.tz)
+        assert len(result) == 0
+
+    def test_keeps_previous_day_event_ending_at_6am_or_later(self) -> None:
+        events = [
+            self._make(
+                "Overnight shift",
+                datetime(2026, 3, 21, 22, 0, tzinfo=self.tz),
+                datetime(2026, 3, 22, 6, 0, tzinfo=self.tz),
+            ),
+            self._make(
+                "Long event",
+                datetime(2026, 3, 21, 20, 0, tzinfo=self.tz),
+                datetime(2026, 3, 22, 8, 0, tzinfo=self.tz),
+            ),
+        ]
+        result = filter_overnight_events(events, self.today, self.tz)
+        assert len(result) == 2
+
+    def test_keeps_same_day_events(self) -> None:
+        events = [
+            self._make(
+                "Morning meeting",
+                datetime(2026, 3, 22, 9, 0, tzinfo=self.tz),
+                datetime(2026, 3, 22, 10, 0, tzinfo=self.tz),
+            ),
+        ]
+        result = filter_overnight_events(events, self.today, self.tz)
+        assert len(result) == 1
+
+    def test_keeps_all_day_events(self) -> None:
+        events = [self._make("Holiday", None, None, is_all_day=True)]
+        result = filter_overnight_events(events, self.today, self.tz)
+        assert len(result) == 1

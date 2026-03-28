@@ -28,6 +28,21 @@ def filter_events(events: list[CalendarEvent], exclude_titles: list[str]) -> lis
     return [e for e in events if e.title.lower() not in exclude_lower]
 
 
+def filter_overnight_events(
+    events: list[CalendarEvent], today: date, tz: ZoneInfo
+) -> list[CalendarEvent]:
+    """Drop timed events that started the previous day and end before 6am today."""
+    cutoff = datetime.combine(today, datetime.min.time(), tzinfo=tz).replace(hour=6)
+    return [
+        e
+        for e in events
+        if e.is_all_day
+        or e.start_time is None
+        or e.start_time.date() >= today
+        or (e.end_time is not None and e.end_time >= cutoff)
+    ]
+
+
 def sort_events(events: list[CalendarEvent], tz: ZoneInfo) -> list[CalendarEvent]:
     """Sort events: all-day first, then by start time."""
     return sorted(
@@ -108,6 +123,7 @@ def fetch_events_for_account(
             _parse_event(raw, cal.label, color, cal.section, tz) for raw in result.get("items", [])
         ]
         events = filter_events(events, cal.filters.exclude_titles)
+        events = filter_overnight_events(events, today, tz)
         all_events.extend(events)
 
     return sort_events(all_events, tz)
