@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#f5f5f5;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;">
-<tr><td align="center" style="padding:20px 10px;">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;">
+<tr><td align="center" style="padding:16px 8px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;">
 
 <!-- Header -->
-<tr><td style="background:#1a1a2e;padding:24px 32px;">
-  <h1 style="margin:0;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:600;">
+<tr><td style="background:#1a1a2e;padding:20px 20px;">
+  <h1 style="margin:0;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:20px;font-weight:600;">
     {{ date_heading }}
   </h1>
 </td></tr>
 
-<tr><td style="padding:24px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#333333;">
+<tr><td style="padding:20px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;line-height:1.4;color:#333333;">
 
 {% if meal_planning_events %}
 <!-- Meal Planning Section -->
-<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:8px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;">
     {{ meal_planning_section_label }}
   </td></tr>
   {% for event in meal_planning_events %}
@@ -31,8 +31,8 @@
 
 {% if self_all_day_events %}
 <!-- All-Day Events -->
-<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:8px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;">
     All-Day Events
   </td></tr>
   {% for event in self_all_day_events %}
@@ -46,13 +46,13 @@
 
 {% if self_timed_events %}
 <!-- Timed Events -->
-<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:8px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;">
     Calendar
   </td></tr>
   {% for event in self_timed_events %}
   <tr><td style="padding:6px 0;border-left:3px solid {{ event.calendar_color }};padding-left:12px;">
-    <span style="color:#666666;font-size:13px;">{{ event.start_time.strftime('%-I:%M %p') }} – {{ event.end_time.strftime('%-I:%M %p') }}</span><br>
+    <span style="color:#666666;font-size:14px;">{{ event.start_time.strftime('%-I:%M %p') }} – {{ event.end_time.strftime('%-I:%M %p') }}</span><br>
     <span style="font-weight:500;">{{ event.title }}{% if show_calendar_labels %} <span style="color:#999999;">({{ event.calendar_label }})</span>{% endif %}</span>
   </td></tr>
   {% endfor %}
@@ -61,16 +61,19 @@
 
 {% if task_groups %}
 <!-- Tasks -->
-<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:8px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;">
     Tasks
   </td></tr>
   {% for group in task_groups %}
-  <tr><td style="font-size:12px;font-weight:600;color:#666666;padding:8px 0 4px 0;border-left:3px solid {{ group.project_color }};padding-left:12px;">{{ group.project_name }}</td></tr>
+  <tr><td style="padding:10px 0 4px 0;">
+    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ group.project_color }};margin-right:6px;vertical-align:middle;"></span>
+    <span style="font-size:13px;font-weight:700;color:#555555;text-transform:uppercase;letter-spacing:0.5px;vertical-align:middle;">{{ group.project_name }}</span>
+  </td></tr>
   {% for task in group.tasks %}
-  <tr><td style="padding:4px 0;border-left:3px solid {{ group.project_color }};padding-left:12px;">
-    <span style="font-weight:500;">{{ task.title }}</span>
-    {% if task.is_overdue %}<span style="color:#d32f2f;font-size:12px;"> (overdue, due {{ task.due_date.strftime('%b %-d') }})</span>{% endif %}
+  <tr><td style="padding:3px 0 3px 22px;">
+    <span style="font-weight:400;">{{ task.title }}</span>
+    {% if task.is_overdue %}<span style="color:#d32f2f;font-size:13px;"> (overdue, due {{ task.due_date.strftime('%b %-d') }})</span>{% endif %}
   </td></tr>
   {% endfor %}
   {% endfor %}
@@ -79,8 +82,8 @@
 
 {% if sports_all_day_events or sports_timed_events %}
 <!-- Sports Section -->
-<table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eeeeee;padding-top:20px;margin-top:8px;">
-  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:8px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eeeeee;padding-top:16px;margin-top:8px;">
+  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;">
     {{ sports_section_label }}
   </td></tr>
   {% for event in sports_all_day_events %}
@@ -91,7 +94,7 @@
   {% endfor %}
   {% for event in sports_timed_events %}
   <tr><td style="padding:6px 0;border-left:3px solid {{ event.calendar_color }};padding-left:12px;">
-    <span style="color:#666666;font-size:13px;">{{ event.start_time.strftime('%-I:%M %p') }} – {{ event.end_time.strftime('%-I:%M %p') }}</span><br>
+    <span style="color:#666666;font-size:14px;">{{ event.start_time.strftime('%-I:%M %p') }} – {{ event.end_time.strftime('%-I:%M %p') }}</span><br>
     <span style="font-weight:500;">{{ event.title }} <span style="color:#999999;">({{ event.calendar_label }})</span></span>
   </td></tr>
   {% endfor %}
@@ -100,8 +103,8 @@
 
 {% if wife_all_day_events or wife_timed_events %}
 <!-- Wife's Section -->
-<table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eeeeee;padding-top:20px;margin-top:8px;">
-  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:8px;">
+<table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eeeeee;padding-top:16px;margin-top:8px;">
+  <tr><td style="font-size:11px;font-weight:700;color:#888888;letter-spacing:1px;text-transform:uppercase;padding-bottom:6px;">
     {{ wife_section_label }}
   </td></tr>
   {% for event in wife_all_day_events %}
@@ -112,7 +115,7 @@
   {% endfor %}
   {% for event in wife_timed_events %}
   <tr><td style="padding:6px 0;border-left:3px solid {{ event.calendar_color }};padding-left:12px;">
-    <span style="color:#666666;font-size:13px;">{{ event.start_time.strftime('%-I:%M %p') }} – {{ event.end_time.strftime('%-I:%M %p') }}</span><br>
+    <span style="color:#666666;font-size:14px;">{{ event.start_time.strftime('%-I:%M %p') }} – {{ event.end_time.strftime('%-I:%M %p') }}</span><br>
     <span style="font-weight:500;">{{ event.title }}</span>
   </td></tr>
   {% endfor %}
