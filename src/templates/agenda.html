@@ -71,9 +71,10 @@
     <span style="font-size:13px;font-weight:700;color:#555555;text-transform:uppercase;letter-spacing:0.5px;vertical-align:middle;">{{ group.project_name }}</span>
   </td></tr>
   {% for task in group.tasks %}
-  <tr><td style="padding:3px 0 3px 22px;">
-    <span style="font-weight:400;">{{ task.title }}</span>
-    {% if task.is_overdue %}<span style="color:#d32f2f;font-size:13px;"> (overdue, due {{ task.due_date.strftime('%b %-d') }})</span>{% endif %}
+  <tr><td style="padding:3px 0 3px 0;">
+    <span style="display:inline-block;width:14px;height:14px;border:2px solid #cccccc;border-radius:3px;margin-right:6px;vertical-align:middle;"></span>
+    <span style="font-weight:400;vertical-align:middle;">{{ task.title }}</span>
+    {% if task.is_overdue %}<span style="color:#d32f2f;font-size:13px;vertical-align:middle;"> (overdue, due {{ task.due_date.strftime('%b %-d') }})</span>{% endif %}
   </td></tr>
   {% endfor %}
   {% endfor %}
