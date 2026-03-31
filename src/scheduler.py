@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 
 from src.config import AppConfig
@@ -36,11 +37,42 @@ def _load_google_credentials(account_name: str, secrets: SecretsClient) -> Crede
     )
 
 
+def _send_reauth_notification(
+    config: AppConfig, secrets: SecretsClient, account_names: list[str]
+) -> None:
+    """Send a notification email when Google OAuth tokens need re-authorization."""
+    base_url = config.app_base_url.rstrip("/")
+    links = "\n".join(
+        f'<li><a href="{base_url}/auth/google/start/{name}">{name}</a></li>'
+        for name in account_names
+    )
+    html_body = (
+        "<p>The following Google account(s) need to be re-authorized:</p>"
+        f"<ul>{links}</ul>"
+        "<p>Click the links above to re-authorize each account.</p>"
+    )
+    subject = "Action Required: Google Calendar Re-authorization"
+
+    try:
+        conn_string = secrets.get_secret("azure-comms-connection-string")
+        send_email(
+            connection_string=conn_string,
+            sender=config.sender_email,
+            recipient=config.recipient_email,
+            subject=subject,
+            html_body=html_body,
+        )
+        logger.info("Re-auth notification sent for accounts: %s", account_names)
+    except Exception:
+        logger.exception("Failed to send re-auth notification email")
+
+
 def send_agenda(config: AppConfig, secrets: SecretsClient) -> None:
     """Fetch all data, compose the email, and send it."""
     tz = ZoneInfo(config.timezone)
     today = date.today()
 
+    auth_errors: list[str] = []
     all_events: list[CalendarEvent] = []
     for account in config.google_accounts:
         creds = _load_google_credentials(account.name, secrets)
@@ -62,6 +94,9 @@ def send_agenda(config: AppConfig, secrets: SecretsClient) -> None:
                 )
                 secrets.set_secret(f"google-token-{account.name}", token_data)
                 logger.info("Refreshed token saved for account '%s'", account.name)
+        except RefreshError:
+            logger.exception("OAuth token expired/revoked for account '%s'", account.name)
+            auth_errors.append(account.name)
         except Exception:
             logger.exception("Failed to fetch events for account '%s'", account.name)
 
@@ -94,6 +129,9 @@ def send_agenda(config: AppConfig, secrets: SecretsClient) -> None:
         logger.info("Daily agenda email sent successfully")
     except Exception:
         logger.exception("Failed to send daily agenda email")
+
+    if auth_errors:
+        _send_reauth_notification(config, secrets, auth_errors)
 
 
 def create_scheduler(config: AppConfig, secrets: SecretsClient) -> BackgroundScheduler:

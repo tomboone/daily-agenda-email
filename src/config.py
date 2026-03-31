@@ -42,6 +42,7 @@ class AppConfig(BaseModel):
     timezone: str
     recipient_email: str
     sender_email: str
+    app_base_url: str = ""
     google_accounts: list[GoogleAccountConfig]
     todoist: TodoistConfig
     meal_planning_section_label: str = "Dinner"

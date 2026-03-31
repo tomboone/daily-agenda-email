@@ -18,6 +18,7 @@ def sample_config() -> AppConfig:
         timezone="America/New_York",
         recipient_email="test@example.com",
         sender_email="noreply@example.com",
+        app_base_url="https://example.com",
         google_accounts=[
             GoogleAccountConfig(
                 name="personal",
