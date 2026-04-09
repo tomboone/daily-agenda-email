@@ -76,11 +76,19 @@ def compose_email(
     sports_events = [e for e in events if e.section == CalendarSection.SPORTS]
 
     self_all_day = merge_duplicate_events([e for e in self_events if e.is_all_day])
-    self_timed = merge_duplicate_events([e for e in self_events if not e.is_all_day])
+    self_timed = sorted(
+        merge_duplicate_events([e for e in self_events if not e.is_all_day]),
+        key=lambda e: e.start_time or datetime.min,
+    )
     wife_all_day = [e for e in wife_events if e.is_all_day]
-    wife_timed = [e for e in wife_events if not e.is_all_day]
+    wife_timed = sorted(
+        [e for e in wife_events if not e.is_all_day], key=lambda e: e.start_time or datetime.min
+    )
     sports_all_day = [e for e in sports_events if e.is_all_day]
-    sports_timed = [e for e in sports_events if not e.is_all_day]
+    sports_timed = sorted(
+        [e for e in sports_events if not e.is_all_day],
+        key=lambda e: e.start_time or datetime.min,
+    )
 
     self_calendar_labels = {e.calendar_label for e in self_events}
     show_calendar_labels = len(self_calendar_labels) > 1
