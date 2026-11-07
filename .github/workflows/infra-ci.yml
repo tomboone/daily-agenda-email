@@ -1,0 +1,34 @@
+#file: noinspection UndefinedAction
+name: Infra CI
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra-ci.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infra
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v2
+
+      - name: Format check
+        run: tofu fmt -check -recursive
+
+      # -backend=false skips Azure auth; init still enforces the lock file
+      # against the version constraints, which is what catches Dependabot
+      # bumping a constraint without regenerating .terraform.lock.hcl.
+      - name: Tofu Init
+        run: tofu init -backend=false -input=false
+
+      - name: Tofu Validate
+        run: tofu validate
