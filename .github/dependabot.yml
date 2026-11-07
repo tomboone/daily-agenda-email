@@ -51,6 +51,11 @@ updates:
       day: saturday
       time: "09:00"
       timezone: America/New_York
+    ignore:
+      # A new Python minor ships before compiled deps (httptools, uvloop, pydantic-core, ...)
+      # publish wheels for it, and the slim image has no compiler. Bump it by hand.
+      - dependency-name: python
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
     groups:
       docker-minor-patch:
         update-types:
