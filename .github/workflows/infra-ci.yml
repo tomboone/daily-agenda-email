@@ -1,11 +1,11 @@
 #file: noinspection UndefinedAction
 name: Infra CI
 
+# No paths filter: `validate` is a required status check on main, and a
+# path-filtered workflow never reports on PRs outside its paths, leaving
+# those PRs blocked on "Expected — Waiting for status". The job takes ~10s.
 on:
   pull_request:
-    paths:
-      - "infra/**"
-      - ".github/workflows/infra-ci.yml"
 
 jobs:
   validate:
