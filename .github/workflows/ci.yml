@@ -1,37 +1,63 @@
-#file: noinspection UndefinedAction
-name: CI
+name: ci
 
 on:
   pull_request:
-    paths:
-      - "pyproject.toml"
-      - "uv.lock"
-      - "src/**"
-      - "tests/**"
+  push:
+    branches: [main]
+
+# A newer push to a PR cancels its older run; runs on main are never cancelled.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
+  # uv sync, ruff check, ruff format --check, pyright, pytest. Scope and options live in pyproject.toml.
+  python:
+    uses: neuroticsasquat-ch/workflows/.github/workflows/python.yml@v1
 
+  # Builds the image without pushing, checks it doesn't run as root, runs .github/ci/smoke.sh.
+  image:
+    uses: neuroticsasquat-ch/workflows/.github/workflows/image-check.yml@v1
+
+  # OpenTofu format, init and validate for infra/. -backend=false skips Azure auth; init still
+  # enforces the lock file against the version constraints, which catches Dependabot bumping a
+  # constraint without regenerating .terraform.lock.hcl.
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
     steps:
       - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          persist-credentials: false
+      - uses: opentofu/setup-opentofu@v2
+      - name: Format check
+        run: tofu fmt -check -recursive
+      - name: Tofu Init
+        run: tofu init -backend=false -input=false
+      - name: Tofu Validate
+        run: tofu validate
 
-      - uses: astral-sh/setup-uv@v7
+  ci: # the one required check; the name is the contract
+    if: always()
+    needs: [python, image, validate] # every other job, extras included
+    runs-on: ubuntu-latest
+    steps:
+      - uses: neuroticsasquat-ch/workflows/actions/gate@v1
+        with:
+          needs: ${{ toJSON(needs) }}
 
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Lint
-        run: |
-          uv run ruff check .
-          uv run ruff format --check .
-
-      - name: Type check
-        run: uv run pyright
-
-      - name: Test
-        run: uv run pytest
+  # main → latest and sha-<7>, only after ci passed on that commit. deploy.yml then runs on this
+  # workflow's successful completion and deploys latest to App Service.
+  publish:
+    if: ${{ !cancelled() && github.event_name == 'push' && needs.ci.result == 'success' }}
+    needs: ci
+    concurrency: { group: "publish-${{ github.ref }}", cancel-in-progress: false }
+    permissions: { contents: read, packages: write }
+    uses: neuroticsasquat-ch/workflows/.github/workflows/image-publish.yml@v1
+    with:
+      image: ghcr.io/tomboone/daily-agenda-email

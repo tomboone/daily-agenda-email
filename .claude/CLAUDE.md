@@ -6,12 +6,12 @@ Daily agenda email — a containerized FastAPI app that sends a daily morning em
 
 ## Stack
 
-- Python 3.12, FastAPI, uvicorn
+- Python 3.14, FastAPI, uvicorn
 - uv for package management
 - go-task for task running
 - Docker for deployment to Azure App Service
 - OpenTofu for infrastructure provisioning
-- GitHub Actions for CI/CD (build → GHCR, deploy → Azure App Service via OIDC)
+- GitHub Actions for CI/CD (ci → publish to GHCR → deploy to Azure App Service via OIDC)
 - APScheduler for in-process cron scheduling
 - Google Calendar API + OAuth (google-api-python-client, google-auth-oauthlib)
 - Todoist REST API v2 (httpx)
@@ -60,10 +60,13 @@ Key infra commands:
 
 ## CI/CD
 
-Two GitHub Actions workflows in `.github/workflows/`:
+CI and dependency automation call the shared `neuroticsasquat-ch/workflows@v1` reusable workflows. Three workflows in `.github/workflows/`:
 
-- `build.yml` — triggers on push to main or manual. Builds Docker image, pushes to GHCR with `sha-xxx` and `latest` tags.
-- `deploy.yml` — triggers on successful build or manual. Logs into Azure via OIDC, runs `tofu apply`, deploys `latest` image to App Service.
+- `ci.yml` — every PR and every push to main. Jobs: `python` (uv sync --locked, ruff, pyright, pytest on the `.python-version` interpreter), `image` (builds the image without pushing, asserts a non-root user, runs `.github/ci/smoke.sh`), `validate` (`tofu fmt`/`init -backend=false`/`validate` in `infra/`), the aggregate `ci` gate (the one required check), and, on push to main only after `ci` passes, `publish` (GHCR `latest` + `sha-<7>`).
+- `deploy.yml` — runs when the `ci` workflow completes successfully on a push to main (so `publish` has finished), or manually. Logs into Azure via OIDC, runs `tofu apply`, deploys `latest` image to App Service.
+- `dependencies.yml` — keeps `updates/dependencies` current with main, auto-merges Dependabot PRs into it, and promotes it to main in the Saturday window.
+
+`.python-version` must match the Dockerfile's `FROM`: CI reads it, so bump both together.
 
 GitHub repo secrets needed (OIDC only): `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
 

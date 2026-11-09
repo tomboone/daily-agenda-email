@@ -24,7 +24,7 @@ Empty sections are omitted automatically.
 
 ## Stack
 
-- Python 3.12, FastAPI, uvicorn
+- Python 3.14, FastAPI, uvicorn
 - APScheduler (in-process cron)
 - Google Calendar API + OAuth
 - Todoist REST API v2
@@ -269,8 +269,10 @@ infra/                       — OpenTofu infrastructure
   backend.hcl                — State backend config (committed)
 
 .github/workflows/           — CI/CD
-  build.yml                  — Build image + push to GHCR
+  ci.yml                     — Checks, image check, Tofu validate; publish to GHCR on main
   deploy.yml                 — Tofu apply + deploy to App Service
+  dependencies.yml           — Dependency branch sync, auto-merge and promotion
+.github/ci/smoke.sh          — Image smoke test run by CI
 ```
 
 ### Local development
@@ -285,13 +287,20 @@ Then `task dev` to run the app. Use `POST /send` to test without waiting for the
 
 ## CI/CD
 
-Two GitHub Actions workflows handle build and deployment:
+CI, image publishing and dependency automation call the shared
+[`neuroticsasquat-ch/workflows`](https://github.com/neuroticsasquat-ch/workflows) reusable workflows
+(`@v1`).
 
-**Build** (`.github/workflows/build.yml`) — triggers on push to `main` or manual dispatch:
-1. Builds the Docker image
-2. Pushes to GHCR with `sha-xxxxx` and `latest` tags
+**CI** (`.github/workflows/ci.yml`) — triggers on every pull request and on push to `main`:
+1. Lint, format check, type check and tests on the Python in `.python-version` (which matches the
+   Dockerfile's `FROM`)
+2. Builds the image without pushing, checks it runs as a non-root user, and runs `.github/ci/smoke.sh`
+3. Validates the OpenTofu config in `infra/`
+4. The aggregate `ci` job, the one required status check
+5. On push to `main`, once `ci` passes: publishes to GHCR with `sha-xxxxxxx` and `latest` tags
 
-**Deploy** (`.github/workflows/deploy.yml`) — triggers on successful build or manual dispatch:
+**Deploy** (`.github/workflows/deploy.yml`) — triggers when CI succeeds on a push to `main` (after
+publishing), or on manual dispatch:
 1. Logs into Azure via OIDC
 2. Runs `tofu apply` to ensure infrastructure is current
 3. Deploys the `latest` image to App Service

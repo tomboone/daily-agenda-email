@@ -20,6 +20,9 @@ FROM base AS runtime
 COPY --from=deps /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
 COPY src/ src/
+# No volumes: config, secrets and OAuth tokens all live in Key Vault, so nothing needs root.
+RUN groupadd --system app && useradd --system --gid app --no-create-home app
+USER app
 
 EXPOSE 8000
 CMD ["uvicorn", "src.main:build_app_from_env", "--factory", "--host", "0.0.0.0", "--port", "8000"]
