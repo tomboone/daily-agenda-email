@@ -1,7 +1,6 @@
 version: 2
-
 updates:
-  - package-ecosystem: pip
+  - package-ecosystem: uv
     directory: /
     target-branch: updates/dependencies
     schedule:
@@ -9,25 +8,12 @@ updates:
       day: saturday
       time: "09:00"
       timezone: America/New_York
+    commit-message:
+      prefix: build
+      prefix-development: build
     groups:
-      python-minor-patch:
-        update-types:
-          - minor
-          - patch
-
-  - package-ecosystem: terraform
-    directory: /infra
-    target-branch: updates/dependencies
-    schedule:
-      interval: weekly
-      day: saturday
-      time: "09:00"
-      timezone: America/New_York
-    groups:
-      terraform-minor-patch:
-        update-types:
-          - minor
-          - patch
+      minor-and-patch:
+        update-types: [minor, patch]
 
   - package-ecosystem: github-actions
     directory: /
@@ -37,11 +23,28 @@ updates:
       day: saturday
       time: "09:00"
       timezone: America/New_York
+    commit-message:
+      prefix: ci
+    # The shared workflows float on @v1; bumping them is the workflows repo's job.
+    ignore:
+      - dependency-name: neuroticsasquat-ch/workflows
     groups:
-      actions-minor-patch:
-        update-types:
-          - minor
-          - patch
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: terraform
+    directory: /infra
+    target-branch: updates/dependencies
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "09:00"
+      timezone: America/New_York
+    commit-message:
+      prefix: chore
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
 
   - package-ecosystem: docker
     directory: /
@@ -51,13 +54,14 @@ updates:
       day: saturday
       time: "09:00"
       timezone: America/New_York
+    commit-message:
+      prefix: build
     ignore:
       # A new Python minor ships before compiled deps (httptools, uvloop, pydantic-core, ...)
-      # publish wheels for it, and the slim image has no compiler. Bump it by hand.
+      # publish wheels for it, and the slim image has no compiler. It also has to move together
+      # with .python-version, which CI reads. Bump it by hand.
       - dependency-name: python
         update-types: ["version-update:semver-minor", "version-update:semver-major"]
     groups:
-      docker-minor-patch:
-        update-types:
-          - minor
-          - patch
+      minor-and-patch:
+        update-types: [minor, patch]

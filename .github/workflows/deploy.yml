@@ -1,11 +1,21 @@
 name: Deploy
 
+# Runs after the `ci` workflow completes on main. That run only concludes `success` when every
+# job passed, including `publish`, so the `latest` image deployed here has already been pushed.
+# Kept as its own workflow rather than a job in ci.yml so the Azure OIDC grant (`id-token: write`)
+# and the Azure secrets never sit in a workflow that runs on every pull request.
 on:
   workflow_run:
-    workflows: [Build]
+    workflows: [ci]
     types: [completed]
     branches: [main]
   workflow_dispatch:
+
+# Every push to main now deploys (no path filter upstream), so merges in quick succession queue
+# here instead of racing for the Tofu state lock. A running deploy is never cancelled.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
@@ -18,7 +28,8 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # A push run, not a PR run whose head branch happens to be named main.
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - uses: actions/checkout@v7

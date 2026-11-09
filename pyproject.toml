@@ -16,6 +16,9 @@ dependencies = [
     "jinja2",
 ]
 
+[tool.uv]
+package = false
+
 [dependency-groups]
 dev = [
     "pytest",
@@ -36,7 +39,7 @@ select = ["E", "F", "I", "W"]
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
-pythonVersion = "3.12"
+pythonVersion = "3.14"
 typeCheckingMode = "basic"
 
 [tool.pytest.ini_options]

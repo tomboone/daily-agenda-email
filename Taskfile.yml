@@ -28,8 +28,8 @@ tasks:
   lint:
     desc: Lint and format check
     cmds:
-      - "{{.DEV_EXEC}} ruff check ."
-      - "{{.DEV_EXEC}} ruff format --check ."
+      - "{{.DEV_EXEC}} ruff check"
+      - "{{.DEV_EXEC}} ruff format --check"
 
   typecheck:
     desc: Run type checking
